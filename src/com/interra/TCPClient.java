@@ -19,12 +19,19 @@ class TCPClient {
 
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-        while ( (response = inFromServer.readLine()) !=null) {
-            System.out.println("Response: " + response);
+//        TODO implement better transferring option
+        char [] c = new char[1020];
+        while ( inFromServer.read(c, 0, c.length) !=-1) {
+//            response = inFromServer.readLine();
+            response = new String(c).trim();
+            System.out.println(response);
+            if( response.equals("Bye")){
+                break;
+            }
             command = inFromUser.readLine();
             outToServer.writeBytes(command + '\n');
-//            clientSocket.close();
+            c = new char[1020];
         }
+        clientSocket.close();
     }
 }

@@ -45,9 +45,13 @@ public class ClientThread extends Thread {
     @Override
     public void run() {
         System.out.println("New client started");
-
+        boolean alive = true;
+        Record record = null;
+        int state = 0;
         try {
-            outToClient.writeBytes(HELLO_MESSAGE + "\n");
+//            outToClient.writeBytes();
+            outToClient.write(HELLO_MESSAGE.getBytes());
+            outToClient.flush();
             String command;
             while ((command = inFromClient.readLine()) != null) {
                 String response = "wrong command";
@@ -57,26 +61,60 @@ public class ClientThread extends Thread {
                         response = "help";
                         break;
                     case "new":
-                        response = "new";
+                        record = new Record();
+                        response = "Enter name";
+                        state = 1;
                         break;
                     case "cancel":
                         response = "Cancelled current operation";
+                        state = 0;
+                        record = null;
+                        break;
+                    case "list":
+                        response = Storage.prettyPrint();
+                        System.out.println(Storage.prettyPrint());
                         break;
                     case "exit": {
-                        outToClient.writeBytes("Bye" + "\n");
-                        outToClient.close();
+                        alive = false;
+                        response = "Bye";
                         break;
                     }
                     default:
-                        response = "wrong command";
+                        if (state == 1) {
+                            record.setName(command);
+                            state = 2;
+                            response = "Enter surname";
+                        } else if (state == 2) {
+                            record.setSurname(command);
+                            state = 3;
+                            response = "Enter patronymic";
+                        } else if (state == 3) {
+                            record.setPatronymic(command);
+                            state = 4;
+                            response = "Enter position";
+                        } else if (state == 4) {
+                            record.setPosition(command);
+                            boolean r = record.commit();
+                            state = 0;
+                            response = r? "Created successfully": "Not created due to storage issues";
+                        } else
+                            response = "Wrong command";
+
                         break;
                 }
-                outToClient.writeBytes(response + "\n");
-
+                outToClient.write(response.getBytes());
+                outToClient.flush();
+                if(!alive){
+                    socket.close();
+                    System.out.println(socket.isClosed());
+                    System.out.println(socket.isConnected());
+                    break;
+                }
             }
             System.out.println("End of a thread");
         } catch (IOException e) {
-            System.err.println("Got exception " + e);
+            e.printStackTrace();
         }
     }
+
 }
