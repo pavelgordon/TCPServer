@@ -72,7 +72,9 @@ public class ClientThread extends Thread {
                         break;
                     case "list":
                         response = Storage.prettyPrint();
-                        System.out.println(Storage.prettyPrint());
+                        break;
+                    case "search":
+                        response = Storage.findAll(command);
                         break;
                     case "exit": {
                         alive = false;
