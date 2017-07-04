@@ -1,4 +1,8 @@
-package com.interra;
+package com.interra.server;
+
+import com.interra.Message;
+import com.interra.Record;
+import com.interra.Storage;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -6,25 +10,20 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Collection;
 import java.util.TreeMap;
-import java.util.stream.Stream;
+
+
+import static com.interra.server.ClientThread.State.*;
 
 /**
  * Created by pgordon on 23.06.2017.
  */
 public class ClientThread extends Thread {
-    private static final String HELLO_MESSAGE = "Welcome to test server!  Enter help for list of available commands.";
+
     private TreeMap<String, String> commands = new TreeMap<>();
     private Socket socket;
     private BufferedReader inFromClient;
     private DataOutputStream outToClient;
-
-    public ClientThread(BufferedReader inFromClient, DataOutputStream outToClient) {
-        System.out.println("New client initialized");
-        this.inFromClient = inFromClient;
-        this.outToClient = outToClient;
-    }
 
     ClientThread(Socket connectionSocket) throws IOException {
         System.out.println("New client initialized");
@@ -35,9 +34,10 @@ public class ClientThread extends Thread {
         commands.put("exit", "close the connection");
         commands.put("cancel", "interrupt current operation without closing connection");
         commands.put("new", "create new record");
+        commands.put("search", "search through records");
     }
 
-    InetAddress getAddress() {
+    public InetAddress getAddress() {
         return socket.getInetAddress();
     }
 
@@ -47,34 +47,34 @@ public class ClientThread extends Thread {
         System.out.println("New client started");
         boolean alive = true;
         Record record = null;
-        int state = 0;
+        State state = State.WAITING_FOR_COMMAND;
         try {
-//            outToClient.writeBytes();
-            outToClient.write(HELLO_MESSAGE.getBytes());
+            outToClient.write(Message.HELLO_MESSAGE.getBytes());
             outToClient.flush();
             String command;
             while ((command = inFromClient.readLine()) != null) {
                 String response = "wrong command";
-                System.out.println("Got command " + command);
+                System.out.println(Message.GOT_COMMAND + command);
                 switch (command) {
                     case "help":
-                        response = "help";
+                        response = getHelp();
                         break;
                     case "new":
                         record = new Record();
                         response = "Enter name";
-                        state = 1;
+                        state = State.WAITING_FOR_NAME;
                         break;
                     case "cancel":
                         response = "Cancelled current operation";
-                        state = 0;
+                        state = State.WAITING_FOR_COMMAND;
                         record = null;
                         break;
                     case "list":
                         response = Storage.prettyPrint();
                         break;
                     case "search":
-                        response = Storage.findAll(command);
+                        response = "Enter query";
+                        state = State.WAITING_FOR_SEARCH;
                         break;
                     case "exit": {
                         alive = false;
@@ -82,23 +82,26 @@ public class ClientThread extends Thread {
                         break;
                     }
                     default:
-                        if (state == 1) {
+                        if (state == State.WAITING_FOR_NAME) {
                             record.setName(command);
-                            state = 2;
+                            state = State.WAITING_FOR_SURNAME;
                             response = "Enter surname";
-                        } else if (state == 2) {
+                        } else if (state == State.WAITING_FOR_SURNAME) {
                             record.setSurname(command);
-                            state = 3;
+                            state = WAITING_FOR_PATRONYMIC;
                             response = "Enter patronymic";
-                        } else if (state == 3) {
+                        } else if (state == WAITING_FOR_PATRONYMIC) {
                             record.setPatronymic(command);
-                            state = 4;
+                            state = WAITING_FOR_POSITION;
                             response = "Enter position";
-                        } else if (state == 4) {
+                        } else if (state == WAITING_FOR_POSITION) {
                             record.setPosition(command);
                             boolean r = record.commit();
-                            state = 0;
-                            response = r? "Created successfully": "Not created due to storage issues";
+                            state = State.WAITING_FOR_COMMAND;
+                            response = r ? "Created successfully" : "Not created due to storage issues";
+                        } else if (state == WAITING_FOR_SEARCH) {
+                            response = Storage.findAll(command);
+                            state = WAITING_FOR_COMMAND;
                         } else
                             response = "Wrong command";
 
@@ -106,10 +109,8 @@ public class ClientThread extends Thread {
                 }
                 outToClient.write(response.getBytes());
                 outToClient.flush();
-                if(!alive){
+                if (!alive) {
                     socket.close();
-                    System.out.println(socket.isClosed());
-                    System.out.println(socket.isConnected());
                     break;
                 }
             }
@@ -117,6 +118,26 @@ public class ClientThread extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public enum State {
+        WAITING_FOR_COMMAND,
+        WAITING_FOR_NAME,
+        WAITING_FOR_SURNAME,
+        WAITING_FOR_PATRONYMIC,
+        WAITING_FOR_POSITION,
+        WAITING_FOR_SEARCH
+    }
+
+    public String getHelp() {
+        StringBuilder response = new StringBuilder();
+        //TODO String.format
+        commands.forEach((k, v) -> {
+            response.append(k);
+            response.append(":");
+            response.append(v);
+        });
+        return response.toString();
     }
 
 }

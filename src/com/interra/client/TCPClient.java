@@ -1,4 +1,4 @@
-package com.interra;
+package com.interra.client;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;

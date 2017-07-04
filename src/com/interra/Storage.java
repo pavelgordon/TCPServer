@@ -21,13 +21,7 @@ public class Storage {
     }
 
     public static String prettyPrint(){
-        StringBuilder table = new StringBuilder();
-        table.append("|--|----------|--------------------|---------------|--------|\n");
-        for(Record r : list){
-            table.append(prettyPrint(r));
-            table.append("|--|----------|--------------------|---------------|--------|");
-        }
-        return table.toString();
+        return prettyPrint(list);
     }
 
     public static String prettyPrint(Record r){
@@ -42,11 +36,11 @@ public class Storage {
     }
     public static String prettyPrint(Collection<Record> records){
         StringBuilder table = new StringBuilder();
-        table.append("|--|----------|--------------------|---------------|--------|\n");
         for(Record r : records){
+            table.append("|--|----------|--------------------|---------------|--------|\n");
             table.append(prettyPrint(r));
-            table.append("|--|----------|--------------------|---------------|--------|");
         }
+        table.append("|--|----------|--------------------|---------------|--------|");
         return table.toString();
     }
 
