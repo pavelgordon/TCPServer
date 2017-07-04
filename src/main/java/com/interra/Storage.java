@@ -24,6 +24,7 @@ public class Storage {
         return prettyPrint(list);
     }
 
+    // We d
     public static String prettyPrint(Record r){
         String str = "";
         str+="|";  str+=padRight(""+r.getId(), 2);

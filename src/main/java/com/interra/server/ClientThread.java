@@ -134,8 +134,9 @@ public class ClientThread extends Thread {
         //TODO String.format
         commands.forEach((k, v) -> {
             response.append(k);
-            response.append(":");
+            response.append(" : ");
             response.append(v);
+            response.append("\n");
         });
         return response.toString();
     }
