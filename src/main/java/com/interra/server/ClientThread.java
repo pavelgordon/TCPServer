@@ -1,8 +1,8 @@
 package com.interra.server;
 
-import com.interra.Message;
-import com.interra.Record;
-import com.interra.Storage;
+import com.interra.ClientThreadState;
+import com.interra.server.storage.Record;
+import com.interra.server.storage.Storage;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -13,17 +13,21 @@ import java.net.Socket;
 import java.util.TreeMap;
 
 
-import static com.interra.server.ClientThread.State.*;
+import static com.interra.ClientThreadState.*;
 
 /**
  * Created by pgordon on 23.06.2017.
  */
 public class ClientThread extends Thread {
 
+
     private TreeMap<String, String> commands = new TreeMap<>();
     private Socket socket;
     private BufferedReader inFromClient;
     private DataOutputStream outToClient;
+    private boolean alive;
+    private Record record;
+    private ClientThreadState currentState;
 
     ClientThread(Socket connectionSocket) throws IOException {
         System.out.println("New client initialized");
@@ -35,9 +39,12 @@ public class ClientThread extends Thread {
         commands.put("cancel", "interrupt current operation without closing connection");
         commands.put("new", "create new record");
         commands.put("search", "search through records");
+        alive = true;
+        currentState = WAITING_FOR_COMMAND;
+
     }
 
-    public InetAddress getAddress() {
+    InetAddress getAddress() {
         return socket.getInetAddress();
     }
 
@@ -45,68 +52,13 @@ public class ClientThread extends Thread {
     @Override
     public void run() {
         System.out.println("New client started");
-        boolean alive = true;
-        Record record = null;
-        State state = State.WAITING_FOR_COMMAND;
         try {
             outToClient.write(Message.HELLO_MESSAGE.getBytes());
             outToClient.flush();
             String command;
             while ((command = inFromClient.readLine()) != null) {
-                String response = "wrong command";
                 System.out.println(Message.GOT_COMMAND + command);
-                switch (command) {
-                    case "help":
-                        response = getHelp();
-                        break;
-                    case "new":
-                        record = new Record();
-                        response = "Enter name";
-                        state = State.WAITING_FOR_NAME;
-                        break;
-                    case "cancel":
-                        response = "Cancelled current operation";
-                        state = State.WAITING_FOR_COMMAND;
-                        record = null;
-                        break;
-                    case "list":
-                        response = Storage.prettyPrint();
-                        break;
-                    case "search":
-                        response = "Enter query";
-                        state = State.WAITING_FOR_SEARCH;
-                        break;
-                    case "exit": {
-                        alive = false;
-                        response = "Bye";
-                        break;
-                    }
-                    default:
-                        if (state == State.WAITING_FOR_NAME) {
-                            record.setName(command);
-                            state = State.WAITING_FOR_SURNAME;
-                            response = "Enter surname";
-                        } else if (state == State.WAITING_FOR_SURNAME) {
-                            record.setSurname(command);
-                            state = WAITING_FOR_PATRONYMIC;
-                            response = "Enter patronymic";
-                        } else if (state == WAITING_FOR_PATRONYMIC) {
-                            record.setPatronymic(command);
-                            state = WAITING_FOR_POSITION;
-                            response = "Enter position";
-                        } else if (state == WAITING_FOR_POSITION) {
-                            record.setPosition(command);
-                            boolean r = record.commit();
-                            state = State.WAITING_FOR_COMMAND;
-                            response = r ? "Created successfully" : "Not created due to storage issues";
-                        } else if (state == WAITING_FOR_SEARCH) {
-                            response = Storage.findAll(command);
-                            state = WAITING_FOR_COMMAND;
-                        } else
-                            response = "Wrong command";
-
-                        break;
-                }
+                String response = handleCommand(command);
                 outToClient.write(response.getBytes());
                 outToClient.flush();
                 if (!alive) {
@@ -120,16 +72,78 @@ public class ClientThread extends Thread {
         }
     }
 
-    public enum State {
-        WAITING_FOR_COMMAND,
-        WAITING_FOR_NAME,
-        WAITING_FOR_SURNAME,
-        WAITING_FOR_PATRONYMIC,
-        WAITING_FOR_POSITION,
-        WAITING_FOR_SEARCH
+    private String handleCommand(String command) {
+        switch (command) {
+            case "help":
+                return buildHelp();
+            case "new":
+                record = new Record();
+                currentState = WAITING_FOR_NAME;
+                return "Enter name";
+            case "cancel":
+                currentState = WAITING_FOR_COMMAND;
+                record = null;
+                return "Cancelled current operation";
+            case "list":
+                return Storage.prettyPrint();
+            case "search":
+                currentState = WAITING_FOR_SEARCH;
+                return "Enter query";
+            case "exit": {
+                alive = false;
+                return "Bye";
+            }
+            default:
+                return handleTextByState(command);
+        }
     }
 
-    public String getHelp() {
+    private String handleTextByState(String command) {
+        switch (currentState) {
+            case WAITING_FOR_NAME:
+                if (Record.isValidName(command)) {
+                    record.setName(command);
+                    currentState = WAITING_FOR_SURNAME;
+                    return "Enter surname";
+                } else {
+                    return "Validation failed. Enter valid name";
+                }
+            case WAITING_FOR_SURNAME:
+                if (Record.isValidSurname(command)) {
+                    record.setSurname(command);
+                    currentState = WAITING_FOR_PATRONYMIC;
+                    return "Enter patronymic";
+                } else {
+                    return "Validation failed. Enter valid surname";
+                }
+
+            case WAITING_FOR_PATRONYMIC:
+                if (Record.isValidPatronymic(command)) {
+                    record.setPatronymic(command);
+                    currentState = WAITING_FOR_POSITION;
+                    return "Enter position";
+                } else {
+                    return "Validation failed. Enter valid patronymic";
+                }
+            case WAITING_FOR_POSITION:
+                if (Record.isValidPosition(command)) {
+                    record.setPosition(command);
+                    record.commit();
+                    currentState = WAITING_FOR_COMMAND;
+                    return "Created successfully";
+                } else {
+                    return "Validation failed. Enter valid position";
+                }
+            case WAITING_FOR_SEARCH:
+                currentState = WAITING_FOR_COMMAND;
+                return Storage.findAll(command);
+            default:
+                return "Wrong command";
+        }
+    }
+
+
+    private String buildHelp() {
         StringBuilder response = new StringBuilder();
         //TODO String.format
         commands.forEach((k, v) -> {
