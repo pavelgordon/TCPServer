@@ -1,8 +1,9 @@
 package com.interra.server;
 
-import com.interra.ClientThreadState;
 import com.interra.server.storage.Record;
 import com.interra.server.storage.Storage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -13,13 +14,13 @@ import java.net.Socket;
 import java.util.TreeMap;
 
 
-import static com.interra.ClientThreadState.*;
+import static com.interra.server.ClientThreadState.*;
 
 /**
  * Created by pgordon on 23.06.2017.
  */
 public class ClientThread extends Thread {
-
+    private static final Logger logger = LogManager.getLogger();
 
     private TreeMap<String, String> commands = new TreeMap<>();
     private Socket socket;
@@ -29,8 +30,8 @@ public class ClientThread extends Thread {
     private Record record;
     private ClientThreadState currentState;
 
-    ClientThread(Socket connectionSocket) throws IOException {
-        System.out.println("New client initialized");
+    ClientThread(Socket connectionSocket, String connectionName) throws IOException {
+        logger.info("New client initialized");
         this.socket = connectionSocket;
         this.inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
         this.outToClient = new DataOutputStream(connectionSocket.getOutputStream());
@@ -51,7 +52,7 @@ public class ClientThread extends Thread {
 
     @Override
     public void run() {
-        System.out.println("New client started");
+        logger.info("New client started");
         try {
             outToClient.write(Message.HELLO_MESSAGE.getBytes());
             outToClient.flush();
@@ -66,7 +67,7 @@ public class ClientThread extends Thread {
                     break;
                 }
             }
-            System.out.println("End of a thread");
+            logger.info("New client started");
         } catch (IOException e) {
             e.printStackTrace();
         }
