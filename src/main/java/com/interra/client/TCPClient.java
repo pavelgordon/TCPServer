@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.net.Socket;
 
 /**
+ * This class is a simple program i used for testing before switching to telnet
  * Created by pgordon on 22.06.2017.
  */
 
@@ -19,11 +20,10 @@ class TCPClient {
 
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-//        TODO implement better transferring option
+//        TODO implement better transferring option?
         char [] c = new char[1020];
-        while ( inFromServer.read(c, 0, c.length) !=-1) {
-//            response = inFromServer.readLine();
-            response = new String(c).trim();
+        while ( inFromServer.read(c) !=-1) {
+            response = new String(c);
             System.out.println(response);
             if( response.equals("Bye")){
                 break;

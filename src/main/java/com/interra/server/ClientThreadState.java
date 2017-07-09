@@ -1,4 +1,4 @@
-package com.interra;
+package com.interra.server;
 
 /**
  * Created by pgordon on 05.07.2017.

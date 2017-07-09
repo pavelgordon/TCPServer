@@ -29,8 +29,9 @@ public class ClientThread extends Thread {
     private boolean alive;
     private Record record;
     private ClientThreadState currentState;
+    private ThreadManager.UnregisterHandler unregisterHandler;
 
-    ClientThread(Socket connectionSocket, String connectionName) throws IOException {
+    ClientThread(Socket connectionSocket) throws IOException {
         logger.info("New client initialized");
         this.socket = connectionSocket;
         this.inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
@@ -52,25 +53,27 @@ public class ClientThread extends Thread {
 
     @Override
     public void run() {
-        logger.info("New client started");
+        logger.info("Started working");
         try {
-            outToClient.write(Message.HELLO_MESSAGE.getBytes());
+            outToClient.write("Welcome to test server!  Enter help for list of available commands.\r\n".getBytes());
             outToClient.flush();
             String command;
             while ((command = inFromClient.readLine()) != null) {
-                System.out.println(Message.GOT_COMMAND + command);
+               logger.info("Got command " + command);
                 String response = handleCommand(command);
-                outToClient.write(response.getBytes());
+                outToClient.write((response + "\r\n").getBytes());
                 outToClient.flush();
                 if (!alive) {
                     socket.close();
                     break;
                 }
             }
-            logger.info("New client started");
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+        unregisterHandler.deregister();
+        logger.info("Stopped working");
     }
 
     private String handleCommand(String command) {
@@ -151,9 +154,12 @@ public class ClientThread extends Thread {
             response.append(k);
             response.append(" : ");
             response.append(v);
-            response.append("\n");
+            response.append("\r\n");
         });
         return response.toString();
     }
 
+    public void setUnregisterHandler(ThreadManager.UnregisterHandler unregisterHandler) {
+        this.unregisterHandler = unregisterHandler;
+    }
 }

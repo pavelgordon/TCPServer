@@ -13,10 +13,6 @@ import java.util.stream.Collectors;
 public class Storage {
     private static LinkedList<Record> list = new LinkedList<>();
 
-    public Record createRecord() {
-        return null;
-    }
-
     public static void put(Record record) {
         list.add(record);
     }
@@ -26,7 +22,6 @@ public class Storage {
         return prettyPrint(list);
     }
 
-    // We d
     public static String prettyPrint(Record r) {
         String str = "";
         str += "|";
@@ -39,14 +34,14 @@ public class Storage {
         str += padRight(r.getPatronymic(), 15);
         str += "|";
         str += padRight(r.getPosition(), 8);
-        str += "|\n";
+        str += "|\r\n";
         return str;
     }
 
     public static String prettyPrint(Collection<Record> records) {
         StringBuilder table = new StringBuilder();
         for (Record r : records) {
-            table.append("|--|----------|--------------------|---------------|--------|\n");
+            table.append("|--|----------|--------------------|---------------|--------|\r\n");
             table.append(prettyPrint(r));
         }
         table.append("|--|----------|--------------------|---------------|--------|");
